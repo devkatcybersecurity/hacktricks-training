@@ -16,25 +16,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        id: configure-aws
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-region: eu-west-1
-          role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target
-          role-session-name: OIDCSession
-
-      - name: Inject AWS Credentials Manually
+      - name: Retrieve OIDC Token
         run: |
-          echo "Setting AWS credentials explicitly..."
-          export AWS_ACCESS_KEY_ID="${{ steps.configure-aws.outputs.aws-access-key-id }}"
-          export AWS_SECRET_ACCESS_KEY="${{ steps.configure-aws.outputs.aws-secret-access-key }}"
-          export AWS_SESSION_TOKEN="${{ steps.configure-aws.outputs.aws-session-token }}"
+          echo "Fetching OIDC token..."
+          export OIDC_TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                               "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
+          echo "OIDC Token retrieved."
 
-          echo "Testing environment variables:"
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
-          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
+      - name: Assume AWS Role with OIDC
+        run: |
+          echo "Assuming role with AWS STS..."
+          aws sts assume-role-with-web-identity \
+            --role-arn arn:aws:iam::196631273822:role/sts-lab-2-target \
+            --role-session-name OIDCSession \
+            --web-identity-token $OIDC_TOKEN \
+            --query 'Credentials' > credentials.json
 
-          echo "Testing AWS CLI:"
+          echo "Temporary AWS Credentials:"
+          cat credentials.json
+
+          export AWS_ACCESS_KEY_ID=$(jq -r '.AccessKeyId' credentials.json)
+          export AWS_SECRET_ACCESS_KEY=$(jq -r '.SecretAccessKey' credentials.json)
+          export AWS_SESSION_TOKEN=$(jq -r '.SessionToken' credentials.json)
+
+      - name: Verify Caller Identity
+        run: |
+          echo "Verifying role assumption..."
           aws sts get-caller-identity
