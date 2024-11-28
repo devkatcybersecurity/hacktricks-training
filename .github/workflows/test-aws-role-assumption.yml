@@ -1,36 +1,29 @@
-name: "Test AWS Role Assumption"
-
+name: 'test AWS Access'
+ 
+# The workflow should only trigger on pull requests to the main branch
 on:
   pull_request:
     branches:
       - main
-
+ 
+# Required to get the ID Token that will be used for OIDC
 permissions:
   id-token: write
-  contents: read # Needed for private repos to checkout
-
+  contents: read # needed for private repos to checkout
+ 
 jobs:
   aws:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout Repository
       - name: Checkout
         uses: actions/checkout@v3
-
-      # Step 2: Configure AWS Credentials
+ 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: eu-west-1
-          role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target # Replace with the specific role
+          role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target
           role-session-name: OIDCSession
-
-      # Step 3: Print Caller Identity (Verify Assumption)
-      - name: Verify Role Assumption
-        run: |
-          echo "Caller Identity:"
-          aws sts get-caller-identity
-
-
-      - name: Print Environment Variables
-        run: env | sort
+ 
+      - run: aws sts get-caller-identity
+        shell: bash
