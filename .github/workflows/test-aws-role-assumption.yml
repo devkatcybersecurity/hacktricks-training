@@ -19,9 +19,21 @@ jobs:
       - name: Retrieve OIDC Token
         run: |
           echo "Fetching OIDC token..."
-          export OIDC_TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                               "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
-          echo "OIDC Token retrieved."
+          OIDC_TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                       "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
+
+          if [ -z "$OIDC_TOKEN" ]; then
+            echo "Error: OIDC token is empty. Exiting..."
+            exit 1
+          fi
+
+          echo "OIDC Token successfully retrieved. Token length: ${#OIDC_TOKEN}"
+          echo $OIDC_TOKEN > oidc_token.txt
+
+      - name: Debug OIDC Token
+        run: |
+          echo "Inspecting OIDC token claims..."
+          cat oidc_token.txt | base64 -d | jq || echo "Token decoding failed. It may not be in base64 format."
 
       - name: Assume AWS Role with OIDC
         run: |
@@ -29,17 +41,36 @@ jobs:
           aws sts assume-role-with-web-identity \
             --role-arn arn:aws:iam::196631273822:role/sts-lab-2-target \
             --role-session-name OIDCSession \
-            --web-identity-token $OIDC_TOKEN \
+            --web-identity-token $(cat oidc_token.txt) \
             --query 'Credentials' > credentials.json
 
+          if [ ! -s credentials.json ]; then
+            echo "Error: Failed to assume role. Check OIDC token and role ARN."
+            cat credentials.json || echo "credentials.json is empty."
+            exit 1
+          fi
+
+          echo "Temporary AWS Credentials successfully retrieved."
           echo "Temporary AWS Credentials:"
           cat credentials.json
 
+      - name: Export Temporary AWS Credentials
+        run: |
+          echo "Exporting AWS credentials for subsequent steps..."
           export AWS_ACCESS_KEY_ID=$(jq -r '.AccessKeyId' credentials.json)
           export AWS_SECRET_ACCESS_KEY=$(jq -r '.SecretAccessKey' credentials.json)
           export AWS_SESSION_TOKEN=$(jq -r '.SessionToken' credentials.json)
 
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+            echo "Error: Missing AWS credentials. Exiting..."
+            exit 1
+          fi
+
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
+
       - name: Verify Caller Identity
         run: |
-          echo "Verifying role assumption..."
+          echo "Verifying role assumption with AWS STS..."
           aws sts get-caller-identity
