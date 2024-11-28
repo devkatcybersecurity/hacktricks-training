@@ -27,3 +27,6 @@ jobs:
 
       - run: aws sts get-caller-identity
         shell: bash
+
+      - run: aws secretsmanager list-secrets
+        shell: bash
