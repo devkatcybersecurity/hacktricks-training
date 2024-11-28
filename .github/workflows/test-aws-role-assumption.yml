@@ -1,16 +1,13 @@
+name: "Test AWS Role Assumption"
 
-name: "test AWS Access"
-
-# The workflow should only trigger on pull requests to the main branch
 on:
   pull_request:
     branches:
       - main
 
-# Required to get the ID Token that will be used for OIDC
 permissions:
   id-token: write
-  contents: read # needed for private repos to checkout
+  contents: read
 
 jobs:
   aws:
@@ -26,5 +23,16 @@ jobs:
           role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target
           role-session-name: OIDCSession
 
-      - run: aws sts get-caller-identity
-        shell: bash
+      - name: Print AWS Caller Identity and Credentials
+        run: |
+          echo "AWS Caller Identity:"
+          aws sts get-caller-identity
+
+          echo "Temporary AWS Credentials (For Debugging):"
+          echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+          echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+          echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.configure-aws-credentials.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.configure-aws-credentials.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.configure-aws-credentials.outputs.aws-session-token }}
