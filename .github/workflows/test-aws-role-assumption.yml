@@ -18,22 +18,23 @@ jobs:
 
       - name: Configure AWS Credentials
         id: configure-aws
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v3
         with:
-          aws-region: eu-east-1
+          aws-region: eu-west-1
           role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target
           role-session-name: OIDCSession
 
-      - name: Print AWS Caller Identity and Temporary Credentials
+      - name: Inject AWS Credentials Manually
         run: |
-          echo "AWS Caller Identity:"
-          aws sts get-caller-identity
+          echo "Setting AWS credentials explicitly..."
+          export AWS_ACCESS_KEY_ID="${{ steps.configure-aws.outputs.aws-access-key-id }}"
+          export AWS_SECRET_ACCESS_KEY="${{ steps.configure-aws.outputs.aws-secret-access-key }}"
+          export AWS_SESSION_TOKEN="${{ steps.configure-aws.outputs.aws-session-token }}"
 
-          echo "Temporary AWS Credentials:"
-          echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-          echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-          echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ steps.configure-aws.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.configure-aws.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.configure-aws.outputs.aws-session-token }}
+          echo "Testing environment variables:"
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
+
+          echo "Testing AWS CLI:"
+          aws sts get-caller-identity
