@@ -13,26 +13,27 @@ jobs:
   aws:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
+        id: configure-aws
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: eu-west-1
           role-to-assume: arn:aws:iam::196631273822:role/sts-lab-2-target
           role-session-name: OIDCSession
 
-      - name: Print AWS Caller Identity and Credentials
+      - name: Print AWS Caller Identity and Temporary Credentials
         run: |
           echo "AWS Caller Identity:"
           aws sts get-caller-identity
 
-          echo "Temporary AWS Credentials (For Debugging):"
+          echo "Temporary AWS Credentials:"
           echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
           echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
           echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
         env:
-          AWS_ACCESS_KEY_ID: ${{ steps.configure-aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.configure-aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.configure-aws-credentials.outputs.aws-session-token }}
+          AWS_ACCESS_KEY_ID: ${{ steps.configure-aws.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.configure-aws.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.configure-aws.outputs.aws-session-token }}
